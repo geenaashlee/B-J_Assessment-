@@ -139,6 +139,20 @@ body{background:var(--off-black);color:var(--off-white);font-family:var(--sans);
 footer{text-align:center;padding:2.5rem;border-top:0.5px solid var(--rule)}
 footer p{font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;color:rgba(232,220,200,0.22)}
 
+.email-wrap{max-width:580px;margin:0 auto;padding:8rem 2rem 6rem;text-align:center}
+.email-eyebrow{font-size:0.7rem;letter-spacing:0.22em;text-transform:uppercase;color:var(--accent);margin-bottom:2rem;font-weight:400}
+.email-wrap h1{font-family:var(--serif);font-size:clamp(2.4rem,5vw,3.8rem);font-weight:300;line-height:1.12;margin-bottom:1.25rem}
+.email-wrap h1 em{font-style:italic;color:var(--accent)}
+.email-wrap p{color:rgba(232,220,200,0.65);font-size:0.97rem;line-height:1.85;max-width:420px;margin:0 auto 3rem}
+.email-input-wrap{width:100%;max-width:420px;border-bottom:0.5px solid rgba(212,201,181,0.5);margin-bottom:2rem}
+.email-input-wrap input{width:100%;background:transparent;border:none;color:var(--off-white);font-family:var(--sans);font-size:1rem;font-weight:300;padding:0.9rem 0;outline:none;text-align:center;letter-spacing:0.04em}
+.email-input-wrap input::placeholder{color:rgba(232,220,200,0.35);letter-spacing:0.08em;font-size:0.92rem}
+.email-submit{display:block;padding:1.1rem 2.75rem;background:var(--accent);color:var(--off-white);font-family:var(--sans);font-size:0.8rem;letter-spacing:0.16em;text-transform:uppercase;font-weight:500;border:none;cursor:pointer;transition:opacity 0.2s,transform 0.15s;width:100%;max-width:420px;margin:0 auto}
+.email-submit:hover{opacity:0.87;transform:translateY(-1px)}
+.email-privacy{font-size:0.72rem;color:rgba(232,220,200,0.3);margin-top:1.25rem;letter-spacing:0.06em}
+.email-error{font-size:0.8rem;color:#c47;margin-top:0.75rem;display:none}
+.email-sending{font-size:0.82rem;color:rgba(232,220,200,0.45);margin-top:0.75rem;display:none;letter-spacing:0.08em;text-transform:uppercase}
+
 @media(max-width:640px){
   .topbar{padding:1.25rem 1.5rem}
   .track-grid{grid-template-columns:1fr}
@@ -201,7 +215,29 @@ footer p{font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;color:rg
   </div>
 </div>
 
-<!-- SCREEN 3: RESULTS -->
+<!-- SCREEN 3: EMAIL CAPTURE -->
+<div class="screen" id="screen-email">
+  <div class="email-wrap">
+    <p class="email-eyebrow">Your Assessment Is Complete</p>
+    <h1>Get Your<br><em>Results</em></h1>
+    <p>Enter your email below and your full Identity Alignment results will be sent directly to your inbox — yours to keep and reference before your Discovery Call.</p>
+    <div class="email-input-wrap">
+      <input type="text" id="name-input" placeholder="Your name" autocomplete="name">
+    </div>
+    <div class="email-input-wrap">
+      <input type="email" id="email-input" placeholder="Your email address" autocomplete="email">
+    </div>
+    <div class="email-input-wrap">
+      <input type="text" id="social-input" placeholder="Your social handle (optional)">
+    </div>
+    <button class="email-submit" onclick="submitEmail()">Send My Results</button>
+    <p class="email-sending" id="email-sending">Sending your results…</p>
+    <p class="email-error" id="email-error">Something went wrong. Please try again.</p>
+    <p class="email-privacy">Your email will not be shared or used for any purpose other than delivering your results.</p>
+  </div>
+</div>
+
+<!-- SCREEN 4: RESULTS -->
 <div class="screen" id="screen-results">
   <div class="results-wrap">
 
@@ -324,6 +360,7 @@ const FUTURE_IDS={
 };
 
 let currentTrack=null,currentQ=0,answers=[],futureAnswer=null;
+let pendingStage=null,pendingDimScores=null,pendingTrack=null;
 
 function startTrack(track){
   currentTrack=track;currentQ=0;answers=[];futureAnswer=null;
@@ -388,26 +425,6 @@ function showResults(){
   document.getElementById('result-stage-name').innerHTML='The <em>'+stage.name+'</em>';
   document.getElementById('result-tagline').textContent=stage.tagline;
 
-  const strip=document.getElementById('score-strip');
-  strip.innerHTML='';
-  stage.scores.forEach(s=>{
-    const val=s.getValue(dimScores);
-    const cell=document.createElement('div');
-    cell.className='score-cell';
-    cell.innerHTML='<span class="score-metric">'+s.label+'</span><span class="score-number">'+val+'%</span>';
-    strip.appendChild(cell);
-  });
-
-  const dims=document.getElementById('score-breakdown-dims');
-  dims.innerHTML='';
-  stage.scores.forEach(s=>{
-    const val=s.getValue(dimScores);
-    const row=document.createElement('div');
-    row.className='score-dim';
-    row.innerHTML='<div><p class="score-dim-name">'+s.label+'</p><p class="score-dim-desc">'+s.desc+'</p></div><div class="score-dim-right"><span class="score-dim-pct">'+val+'%</span><div class="score-bar-wrap"><div class="score-bar-fill" style="width:0%" data-width="'+val+'%"></div></div></div>';
-    dims.appendChild(row);
-  });
-
   document.getElementById('result-reveal-head').innerHTML=stage.revealHead;
   document.getElementById('result-reveal-body').textContent=stage.revealBody;
 
@@ -430,6 +447,37 @@ function showResults(){
   const bl=document.getElementById('cta-bullets');bl.innerHTML='';
   stage.ctaBullets.forEach(b=>{const li=document.createElement('li');li.className='cta-bullet';li.textContent=b;bl.appendChild(li);});
 
+  // store answers for use after email submit
+  pendingDimScores=dimScores;
+  pendingStage=stage;
+  pendingTrack=track;
+  showScreen('screen-email');
+}
+
+function showResultsNow(){
+  const stage=pendingStage;
+  const dimScores=pendingDimScores;
+
+  const strip=document.getElementById('score-strip');
+  strip.innerHTML='';
+  stage.scores.forEach(s=>{
+    const val=s.getValue(dimScores);
+    const cell=document.createElement('div');
+    cell.className='score-cell';
+    cell.innerHTML='<span class="score-metric">'+s.label+'</span><span class="score-number">'+val+'%</span>';
+    strip.appendChild(cell);
+  });
+
+  const dims=document.getElementById('score-breakdown-dims');
+  dims.innerHTML='';
+  stage.scores.forEach(s=>{
+    const val=s.getValue(dimScores);
+    const row=document.createElement('div');
+    row.className='score-dim';
+    row.innerHTML='<div><p class="score-dim-name">'+s.label+'</p><p class="score-dim-desc">'+s.desc+'</p></div><div class="score-dim-right"><span class="score-dim-pct">'+val+'%</span><div class="score-bar-wrap"><div class="score-bar-fill" style="width:0%" data-width="'+val+'%"></div></div></div>';
+    dims.appendChild(row);
+  });
+
   showScreen('screen-results');
   window.scrollTo(0,0);
   setTimeout(()=>{
@@ -442,6 +490,60 @@ function showResults(){
       },i*200);
     });
   },120);
+}
+
+function submitEmail(){
+  const name=document.getElementById('name-input').value.trim();
+  const email=document.getElementById('email-input').value.trim();
+  const social=document.getElementById('social-input').value.trim();
+
+  if(!name){
+    const err=document.getElementById('email-error');
+    err.textContent='Please enter your name.';
+    err.style.display='block';
+    return;
+  }
+  if(!email||!email.includes('@')){
+    const err=document.getElementById('email-error');
+    err.textContent='Please enter a valid email address.';
+    err.style.display='block';
+    return;
+  }
+  document.getElementById('email-error').style.display='none';
+  document.getElementById('email-sending').style.display='block';
+  document.querySelector('.email-submit').disabled=true;
+
+  const stage=pendingStage;
+  const track=pendingTrack;
+  const totalScore=answers.reduce((sum,aIdx,qIdx)=>{
+    const scoredQs=track.questions.filter(x=>x.scored!==false);
+    return sum+scoredQs[qIdx].answers[aIdx].score;
+  },0);
+
+  const formData=new FormData();
+  formData.append('name',name);
+  formData.append('email',email);
+  formData.append('social_handle',social||'Not provided');
+  formData.append('track',currentTrack==='individual'?'Individual — The Archive Edit':'Brand — The Direction');
+  formData.append('stage','The '+stage.name);
+  formData.append('total_score',totalScore+' / 40');
+  formData.append('future_identity',futureAnswer!==null?['A','B','C','D'][futureAnswer]:'—');
+  formData.append('_subject','New BÁJ Identity Alignment Result — '+name+' ('+email+')');
+
+  fetch('https://formspree.io/f/mjgaazwg',{
+    method:'POST',
+    body:formData,
+    headers:{'Accept':'application/json'}
+  }).then(r=>{
+    document.getElementById('email-sending').style.display='none';
+    showResultsNow();
+  }).catch(()=>{
+    document.getElementById('email-sending').style.display='none';
+    document.querySelector('.email-submit').disabled=false;
+    const err=document.getElementById('email-error');
+    err.textContent='Something went wrong. Please try again.';
+    err.style.display='block';
+  });
 }
 
 function showScreen(id){
